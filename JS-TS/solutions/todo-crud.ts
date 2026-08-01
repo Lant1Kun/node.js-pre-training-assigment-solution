@@ -1,17 +1,87 @@
-import { Todo } from './types';
+import { Todo, TodoStatus } from './types';
+import { createTodo } from './todo-factory';
 
 export function addTodo(state: Todo[], todo: Todo): Todo[] {
-  throw new Error('addTodo: not implemented');
+  const result : Todo[] = [];
+  for (let i = 0; i < state.length; i++) {
+    result.push(state[i]);
+  }
+  result.push(todo);
+  return result;
 }
 
 export function updateTodo(state: Todo[], id: number, update: Partial<Omit<Todo, 'id' | 'createdAt'>>): Todo[] {
-  throw new Error('updateTodo: not implemented');
+  const result : Todo[] = [];
+  let f = 0;
+  for (let i = 0; i < state.length; i++) {
+    const item = state[i];
+    if (item.id === id) {
+      let updated = update;
+      let newtodo = {} as Todo;
+      newtodo.id = item.id;
+      newtodo.createdAt = item.createdAt;
+      if (updated.description != undefined) {
+        newtodo.description = updated.description;
+      } else {
+        newtodo.description = item.description;
+      }
+      if (updated.status != undefined) {
+        newtodo.status = updated.status;
+      } else {
+        newtodo.status = item.status;
+      }
+      if (updated.title != undefined) {
+        newtodo.title = updated.title;
+      } else {
+        newtodo.title = item.title;
+      }
+      result.push(newtodo);
+      f = 1;
+    } else {
+      result.push(item);
+    }
+  }
+  if (f == 1) {
+    return result;
+  } else {
+    throw Error('Updating unexisting Todo');
+  }
 }
 
 export function removeTodo(state: Todo[], id: number): Todo[] {
-  throw new Error('removeTodo: not implemented');
+  const result : Todo[] = [];
+  let f = 0;
+  for (let i = 0; i < state.length; i++) {
+    if (state[i].id !== id) {
+      result.push(state[i]);
+    } else {
+      f = 1;
+    }
+  }
+  if (f == 1) {
+    return result;
+  } else {
+    throw Error('Removing unexisting Todo');
+  }
+  
 }
 
 export function getTodo(state: Todo[], id: number): Todo | undefined {
-  throw new Error('getTodo: not implemented');
+  let result = {} as Todo;
+  for (let i = 0; i < state.length; i++) {
+    if (state[i].id === id) {
+      result = state[i];
+      break;
+    }
+  }
+  return result;
 }
+const state = [];
+const todo = createTodo({ title: 'Write tests' });
+const state2 = addTodo(state, todo);
+const state3 = updateTodo(state2, todo.id, { status: TodoStatus.COMPLETED, description: '67' });
+const state4 = removeTodo(state3, todo.id);
+const state5 = getTodo(state3, todo.id);
+console.log(state4);
+console.log(state3);
+console.log(state5);
