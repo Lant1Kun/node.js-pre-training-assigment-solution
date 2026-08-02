@@ -76,12 +76,3 @@ export function getTodo(state: Todo[], id: number): Todo | undefined {
   }
   return result;
 }
-const state = [];
-const todo = createTodo({ title: 'Write tests' });
-const state2 = addTodo(state, todo);
-const state3 = updateTodo(state2, todo.id, { status: TodoStatus.COMPLETED, description: '67' });
-const state4 = removeTodo(state3, todo.id);
-const state5 = getTodo(state3, todo.id);
-console.log(state4);
-console.log(state3);
-console.log(state5);
