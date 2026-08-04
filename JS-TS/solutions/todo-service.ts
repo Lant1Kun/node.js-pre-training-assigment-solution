@@ -24,9 +24,11 @@ export class TodoService {
   async search(keyword: string): Promise<Todo[]> {
     const result : Todo[] = [];
     const curarr = this.api.getAll();
-    for (let i = 0; i < (await curarr).length; i++) {
-      const item = (await curarr);
-      if (item[i].title === keyword) {
+    const item = (await curarr);
+    const keywordy = keyword.toLowerCase();
+    for (let i = 0; i < item.length; i++) {
+      const curitem = item[i].title.toLowerCase();
+      if (curitem.includes(keywordy)) {
         result.push(item[i]);
       }
     }
