@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,   // убирает предупреждение ts-jest
+    "types": ["node", "jest"], // подключает типы Jest
+    "skipLibCheck": true,      // иногда помогает избежать конфликтов
+    "module": "commonjs",      // Jest обычно работает с commonjs
+    "target": "es6"            // или выше
+  },
+  "include": ["src/**/*", "tests/**/*"], // убедитесь, что тесты включены
+  "exclude": ["node_modules"]
+}
