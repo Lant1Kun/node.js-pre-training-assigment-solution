@@ -9,16 +9,20 @@ export class InMemoryRepository<T extends { id: number }> {
   }
 
   update(id: number, patch: Partial<T>): T {
-    let newtodo = {} as T;
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i];
       if (item.id === id) {
         const updated = patch;
-        newtodo = { ...this.items[i], updated};
+        const old = item;
+        const newtodo : T = {
+          ...old,
+          ...updated,
+        };
         this.items[i] = newtodo;
+        return this.items[i];
       }
     }
-    return newtodo;
+    throw new Error("No id in array");
   }
 
   remove(id: number): void {
