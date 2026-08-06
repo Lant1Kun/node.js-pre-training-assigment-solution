@@ -4,8 +4,8 @@ import { createTodo } from './todo-factory';
 import { updateTodo } from './todo-crud';
 
 export class TodoApi {
-  private repo = new InMemoryRepository<Todo>();
-  private delay(ms: number): Promise<void> {
+  public repo = new InMemoryRepository<Todo>();
+  public delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   async getAll(): Promise<Todo[]> {
