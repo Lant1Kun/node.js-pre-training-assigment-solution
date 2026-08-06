@@ -25,7 +25,7 @@ export class TodoApi {
     if (f !== undefined) {
       return this.repo.update(id, update);
     } else {
-      throw Error('TodoNotFoundError');
+      throw new TodoNotFoundError(id);
     }
   }
   async remove(id: number): Promise<void> {
@@ -34,7 +34,15 @@ export class TodoApi {
     if (f !== undefined) {
       return this.repo.remove(id);
     } else {
-      throw Error('TodoNotFoundError');
+      throw new TodoNotFoundError(id);
     }
+  }
+}
+
+export class TodoNotFoundError extends Error {
+  constructor(id: number) {
+    super(`Todo with id ${id} not found`);
+    this.name = 'TodoNotFoundError';
+    Object.setPrototypeOf(this, TodoNotFoundError.prototype);
   }
 }
