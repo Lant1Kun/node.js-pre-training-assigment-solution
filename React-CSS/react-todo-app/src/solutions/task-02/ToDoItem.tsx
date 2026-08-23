@@ -45,7 +45,6 @@ export const ToDoItem: React.FC<TodoItemProps> = ({ todo }) => {
   // 
   // Example usage:
   // <ToDoItem todo={{ id: 1, title: 'Learn React', completed: true }} />
-  const oneTodo = todo;
   return (
     <div>
       <p><span>{todo.title}</span> ({todo.completed ? <span style={{ color: 'green'}}>completed</span> : <span style={{ color: 'red'}}>not completed</span>})</p>
