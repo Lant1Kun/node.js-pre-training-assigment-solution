@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Todo } from '../../types';
+import { ToDoList } from '../task-01/ToDoList'
 
 /**
  * Task 3: AddToDo Component
@@ -47,12 +48,32 @@ export const AddToDo: React.FC = () => {
   // Example implementation:
   // const [inputValue, setInputValue] = useState('');
   // const [todos, setTodos] = useState<Todo[]>([]);
-
+  const [todos, setTodos] = useState<Todo[]>([]);
+  //const [newTodo, setTodo] = useState<Todo>({title : '', id:0, completed: false})
+  const [todoName, setTodoName] = useState<Todo['title']>('');
+  const newFixTodo = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const todoCurName = event.target;
+    setTodoName(todoCurName.value);
+  };
+  function addTodo(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); 
+    const newTodo = {
+      title: todoName,
+      id: todos.length + 1,
+      completed: false
+    };
+    setTodos(todos => [...todos, newTodo]);
+    setTodoName('');
+  };
   return (
     <div>
-      {/* TODO: Replace this with your implementation */}
-      <h4>Add ToDo Component</h4>
-      <p>Implement useState and form handling here</p>
+      <form onSubmit={addTodo}>
+        <div>
+          <input type='text' id='name' name='name' placeholder='Add todo' value={todoName} onChange={newFixTodo} required/>
+        </div>
+        <button type='submit'>Add new ToDo</button>
+      </form>
+      <ToDoList todos={todos}/>
     </div>
   );
 }; 
