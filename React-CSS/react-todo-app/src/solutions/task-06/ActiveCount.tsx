@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActiveCountProps } from '../../types';
 
 /**
@@ -59,12 +59,13 @@ export const ActiveCount: React.FC<ActiveCountProps> = ({ todos }) => {
   // 
   // Example display:
   // "0 active todos" or "1 active todo" or "5 active todos"
-
+  const activeCount = todos.filter(todo => !todo.completed).length;
   return (
     <div>
-      {/* TODO: Replace this with your implementation */}
       <h4>Active Count Component</h4>
-      <p>Calculate and display active todos count here</p>
+      <span>{activeCount === 0 && <span>0 active todos</span>}</span>
+      <span>{activeCount === 1 && <span>1 active todo</span>}</span>
+      <span>{activeCount > 1 && <span>{activeCount} active todos</span>}</span>
     </div>
   );
 }; 
