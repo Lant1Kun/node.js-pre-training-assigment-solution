@@ -63,11 +63,63 @@ export const FilteredToDoList: React.FC = () => {
   //   return true; // 'all' case
   // });
 
-  return (
-    <div>
-      {/* TODO: Replace this with your implementation */}
-      <h4>Filtered ToDo List Component</h4>
-      <p>Implement derived state and filtering here</p>
-    </div>
-  );
+    const [todos, setTodos] = useState<Todo[]>([]);
+    const [todoName, setTodoName] = useState<Todo['title']>('');
+    const [todoStatus, setTodoStatus] = useState<Todo['completed']>(false);
+    const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+    const filteredTodos = todos.filter(todo => {
+       if (filter === 'active') return !todo.completed;
+       if (filter === 'completed') return todo.completed;
+       return true; // 'all' case
+    });
+    const newFixTodo = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const todoCurName = event.target;
+      setTodoName(todoCurName.value);
+    };
+    function addTodo(event: React.FormEvent<HTMLFormElement>) {
+      event.preventDefault(); 
+      const newTodo = {
+        title: todoName,
+        id: todos.length + 1,
+        completed: todoStatus
+      };
+      setTodos(todos => [...todos, newTodo]);
+      setTodoName('');
+    };
+    const completeTodo = (id : number) => {
+      let todoList = todos;
+      todoList[id - 1].completed = true;
+      setTodos(todos => [...todoList]);
+    }
+    const showAll = () => {
+      setFilter('all');
+    }
+    const showCompleted = () => {
+      setFilter('completed');
+    }
+    const showActive = () => {
+      setFilter('active');
+    }
+    return (
+      <div>
+        <form onSubmit={addTodo}>
+          <div>
+            <input type='text' id='name' name='name' placeholder='Add todo' value={todoName} onChange={newFixTodo} required/>
+          </div>
+          <button type='submit'>Add new ToDo</button>
+        </form>
+        <ul style={{listStyle: 'none'}}>
+          {filteredTodos.map((todo) => (
+            <li key={todo.id}>
+              <span style={{marginRight: 20}}>{todo.title} - {todo.completed ? 'completed' : 'not completed'}</span>
+              <button onClick={() => completeTodo(todo.id)}>Complete</button>
+            </li>
+          ))};
+        </ul>
+        <h4>Filters</h4>
+        <button style={{marginRight: 10}} onClick={() => showAll()}>All</button>
+        <button style={{marginRight: 10}} onClick={() => showActive()}>Active</button>
+        <button onClick={() => showCompleted  ()}>Completed</button>
+      </div>
+    );
 }; 
