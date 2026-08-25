@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Todo } from '../../types';
+import { ToDoList } from '../task-01/ToDoList'
 
 /**
  * Task 4: CompleteToDoList Component
@@ -57,11 +58,44 @@ export const CompleteToDoList: React.FC = () => {
   //   ));
   // };
 
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [todoName, setTodoName] = useState<Todo['title']>('');
+  const [todoStatus, setTodoStatus] = useState<Todo['completed']>(false);
+  const newFixTodo = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const todoCurName = event.target;
+    setTodoName(todoCurName.value);
+  };
+  function addTodo(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); 
+    const newTodo = {
+      title: todoName,
+      id: todos.length + 1,
+      completed: todoStatus
+    };
+    setTodos(todos => [...todos, newTodo]);
+    setTodoName('');
+  };
+  const completeTodo = (id : number) => {
+    let todoList = todos;
+    todoList[id - 1].completed = true;
+    setTodos(todos => [...todoList]);
+  }
   return (
     <div>
-      {/* TODO: Replace this with your implementation */}
-      <h4>Complete ToDo List Component</h4>
-      <p>Implement immutable state updates here</p>
+      <form onSubmit={addTodo}>
+        <div>
+          <input type='text' id='name' name='name' placeholder='Add todo' value={todoName} onChange={newFixTodo} required/>
+        </div>
+        <button type='submit'>Add new ToDo</button>
+      </form>
+      <ul style={{listStyle: 'none'}}>
+        {todos.map((todo) => (
+          <li key={todo.id}>
+            <span style={{marginRight: 20}}>{todo.title} - {todo.completed ? 'completed' : 'not completed'}</span>
+            <button onClick={() => completeTodo(todo.id)}>Complete</button>
+          </li>
+        ))};
+      </ul>
     </div>
   );
 }; 
