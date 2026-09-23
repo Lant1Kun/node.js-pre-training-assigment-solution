@@ -1,7 +1,7 @@
 const fs = require("fs");
 const fsPromises = require("fs").promises;
 const util = require("util");
-
+const net = require("net");
 /**
  * Event Loop Analysis and Async Debugging
  * Learn Node.js event loop phases and fix broken async code
@@ -23,7 +23,6 @@ function analyzeEventLoop() {
     executionOrder: [],
     explanations: [],
   };
-
   console.log("Event loop analysis not implemented yet");
   return analysis;
 }
@@ -134,8 +133,22 @@ async function demonstrateEventLoop() {
   // 4. Show check phase (setImmediate)
   // 5. Show close callbacks phase
   // 6. Demonstrate microtask priority (nextTick, Promises)
+  setTimeout(() => console.log("[Timer]   setTimeout"), 0);
 
-  console.log("Event loop demonstration not implemented yet");
+  const test = net.connect({ port: 1, host: "127.0.0.1" });
+  test.on("error", (err) => {
+    console.log("[Pending] TCP error callback:", err.code);
+  });
+
+  fs.readFile(__filename, () => {
+    console.log("[Poll]    fs.readFile callback");
+  });
+
+  setImmediate(() => {
+    console.log("[Check]   setImmediate");
+  });
+  process.nextTick(() => console.log("Next Tick 1"));
+  process.nextTick(() => console.log("Next Tick 2"));
 }
 
 /**
@@ -205,7 +218,7 @@ module.exports = {
 };
 
 // Example usage (for testing):
-const isReadyToTest = false;
+const isReadyToTest = true;
 
 if (isReadyToTest) {
   async function runExamples() {
@@ -224,7 +237,7 @@ if (isReadyToTest) {
     console.log("Analysis:", analysis);
 
     // Fix broken code
-    console.log("\n=== Fixing Broken Code ===");
+    /*console.log("\n=== Fixing Broken Code ===");
     try {
       await fixRaceCondition();
       console.log("✅ Race condition fixed");
@@ -236,7 +249,7 @@ if (isReadyToTest) {
       console.log("✅ Mixed async resolved");
     } catch (error) {
       console.error("❌ Error fixing code:", error.message);
-    }
+    }*/
   }
 
   runExamples();
