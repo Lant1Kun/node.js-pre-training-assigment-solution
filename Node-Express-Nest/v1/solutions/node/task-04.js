@@ -1,4 +1,5 @@
 const http = require("http");
+const { text, json } = require("stream/consumers");
 const url = require("url");
 
 /**
@@ -23,9 +24,27 @@ function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
 
-    // Implementation goes here
-    console.log("Body parsing not implemented yet");
-    resolve({});
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+
+    req.on("end", () => {
+      if (!body || body.trim() === "") {
+        return resolve({});
+      }
+
+      try {
+        const parsed = JSON.parse(body);
+        resolve(parsed);
+      } catch (err) {
+        reject(new Error(`Invalide JSON body: ${err.message}`));
+      }
+
+    });
+
+    req.on("error", (err) => {
+      reject(err);
+    });
   });
 }
 
@@ -45,8 +64,33 @@ function parsePathParams(pattern, path) {
 
   const params = {};
 
+  const cleanPath = path.split("?")[0].replace(/\/+$/, "");
+  const cleanPattern = pattern.replace(/\/+$/, "");
+  const patternParts = cleanPattern.split("/");
+  const pathParts = cleanPath.split("/");
+
+  if (patternParts.length != pathParts.length) {
+    return null;
+  }
+
+  for (let i = 0; i < patternParts.length; i++) {
+    const patternPart = patternParts[i];
+    const pathPart = pathParts[i];
+
+    if (patternPart.startsWith(':') ) {
+      const name = patternPart.slice(1);
+      if (name === "") {
+        return null;
+      }
+      params[name] = decodeURIComponent(pathPart);
+    } else {
+      if (patternPart != pathPart) {
+        return null;
+      }
+    }
+  }
+
   // Implementation goes here
-  console.log("Path params parsing not implemented yet");
   return params;
 }
 
@@ -69,9 +113,15 @@ function sendResponse(res, statusCode, data) {
   // - Access-Control-Allow-Origin: *
   // - Access-Control-Allow-Methods: GET, POST, PUT, DELETE
   // - Access-Control-Allow-Headers: Content-Type
+  res.writeHead(statusCode, {
+    "Content-Type": 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  });
 
-  console.log("Response sending not implemented yet");
-  res.end();
+  const body = JSON.stringify(data ?? {});
+  res.end(body);
 }
 
 /**
@@ -138,10 +188,30 @@ class TodoServer {
     // 3. Set proper id sequence for new todos
 
     const sampleTodos = [
-      // Add sample todos here
+      { name : "Test 1",
+        descripton: "Description of first todo",
+        completed : false,
+        createdAt: new Date(),
+      },
+      {
+        name : "Test 2",
+        descripton: "Description of second todo",
+        completed : false,
+        createdAt: new Date(),
+      },
+      {
+        name : "Test 3",
+        descripton: "Description of third todo",
+        completed : false,
+        createdAt: new Date(),
+      }
     ];
 
-    console.log("Sample data initialization not implemented yet");
+    sampleTodos.forEach(element => {
+      const id = this.nextId;
+      this.todos.push({...element, id});
+      this.nextId++;
+    });
   }
 
   /**
@@ -153,8 +223,24 @@ class TodoServer {
     // 2. Listen on specified port
     // 3. Log server startup message
     // 4. Handle server errors
-
-    console.log("Server start not implemented yet");
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { 'content-type' : 'text/plain'});
+      res.end('Hello world!');
+      this.handleRequest(req, res);
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use`);
+        process.exit(1);
+      } else {
+        console.error('Server error:', err);
+      }
+    });
+    const PORT = 3000;
+    server.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}/`);
+    });
+    
   }
 
   /**
@@ -169,16 +255,44 @@ class TodoServer {
     // 3. Handle CORS preflight requests (OPTIONS)
     // 4. Call appropriate handler method
     // 5. Handle unknown routes with 404
-
+    console.log("handleRequest hit:", req.method, req.url);
     try {
       const parsedUrl = url.parse(req.url, true);
       const { pathname, query } = parsedUrl;
       const method = req.method;
-
       console.log(
         `${method} ${pathname} - Request handling not implemented yet`
       );
-
+      if (method === 'OPTIONS') {
+        return this.handleCORS(req, res);
+      }
+      if (method === 'GET' && pathname === '/todos') {
+        return await this.getAllTodos(req, res, query);
+      }
+      const todoIdMatch = pathname.match(/^\/todos\/([^/]+)$/);
+      if (todoIdMatch) {
+        const id = decodeURIComponent(todoIdMatch[1]);
+        if (method === 'GET') {
+          return await this.getTodoById(req, res, id);
+        }
+        if (method === 'PUT') {
+          return await this.updateTodo(req, res, id);
+        }
+        if (method === 'DELETE') {
+          return await this.deleteTodo(req, res, id);
+        }
+      }
+      if (method === 'POST' && pathname === '/todos') {
+        return await this.createTodo(req, res);
+      }
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(
+        JSON.stringify({
+          error: 'Not Found',
+          path: pathname,
+          method,
+        })
+      );
       // Route to appropriate handler based on method and path
       // GET /todos -> getAllTodos
       // GET /todos/:id -> getTodoById
@@ -186,11 +300,6 @@ class TodoServer {
       // PUT /todos/:id -> updateTodo
       // DELETE /todos/:id -> deleteTodo
       // OPTIONS -> handleCORS
-
-      sendResponse(res, 501, {
-        success: false,
-        error: "Request handling not implemented yet",
-      });
     } catch (error) {
       console.error("Request handling error:", error);
       sendResponse(res, 500, {
@@ -318,9 +427,11 @@ class TodoServer {
     // 1. Set CORS headers
     // 2. Return 204 No Content
     // 3. Handle preflight request properly
-
-    console.log("CORS handling not implemented yet");
-    sendResponse(res, 204, {});
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.writeHead(204);
+    res.end();
   }
 
   /**
