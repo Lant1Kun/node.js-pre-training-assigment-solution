@@ -1,4 +1,6 @@
+const { error } = require("console");
 const http = require("http");
+const { type } = require("os");
 const { text, json } = require("stream/consumers");
 const url = require("url");
 
@@ -155,8 +157,44 @@ function validateTodo(todoData, isUpdate = false) {
   // - Optional field
   // - Must be boolean if provided
 
-  console.log("Todo validation not implemented yet");
-  return { isValid: true, errors };
+  if (todoData === null || typeof todoData !== "object" || Array.isArray(todoData)) {
+    errors.push("Request body must be a JSON object");
+    return { isValid: false, errors };
+  }
+
+  const hasName = Object.prototype.hasOwnProperty.call(todoData, "name");
+
+  if (!hasName) {
+    errors.push("Name is required");
+  } else if (hasName) {
+    const { name } = todoData;
+    if (typeof name !== "string") {
+      errors.push("Name must be string");
+    } else if (name.trim().length === 0){
+      errors.push("Name cannot be empty or whitespace only");
+    } else if (name.length > 100) {
+      errors.push("Name must be 100 characters or less");
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(todoData, "description")) {
+    const { descripton } = todoData;
+    if (descripton !== null && descripton !== undefined) {
+      if (typeof descripton !== "string") {
+        errors.push("Description must be a string");
+      } else if (descripton.length > 500) {
+        errors.push("Description must be 100 characters or less");
+      }
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(todoData, "completed")) {
+    const {completed} = todoData;
+    if (typeof completed !== "boolean") {
+        errors.push("Completed must be a boolean");
+    }
+  }
+  return { isValid: errors.length === 0, errors };  
 }
 
 /**
@@ -191,19 +229,16 @@ class TodoServer {
       { name : "Test 1",
         descripton: "Description of first todo",
         completed : false,
-        createdAt: new Date(),
       },
       {
         name : "Test 2",
         descripton: "Description of second todo",
         completed : false,
-        createdAt: new Date(),
       },
       {
         name : "Test 3",
         descripton: "Description of third todo",
         completed : false,
-        createdAt: new Date(),
       }
     ];
 
@@ -266,21 +301,21 @@ class TodoServer {
       if (method === 'OPTIONS') {
         return this.handleCORS(req, res);
       }
-      if (method === 'GET' && pathname === '/todos') {
-        return await this.getAllTodos(req, res, query);
-      }
-      const todoIdMatch = pathname.match(/^\/todos\/([^/]+)$/);
-      if (todoIdMatch) {
-        const id = decodeURIComponent(todoIdMatch[1]);
+      
+      const param = parsePathParams('todos/:id', pathname);
+      if (param != null) {
         if (method === 'GET') {
-          return await this.getTodoById(req, res, id);
+          return await this.getTodoById(req, res, param);
         }
         if (method === 'PUT') {
-          return await this.updateTodo(req, res, id);
+          return await this.updateTodo(req, res, param);
         }
         if (method === 'DELETE') {
-          return await this.deleteTodo(req, res, id);
+          return await this.deleteTodo(req, res, param);
         }
+      }
+      if (method === 'GET' && pathname === '/todos') {
+        return await this.getAllTodos(req, res, query);
       }
       if (method === 'POST' && pathname === '/todos') {
         return await this.createTodo(req, res);
