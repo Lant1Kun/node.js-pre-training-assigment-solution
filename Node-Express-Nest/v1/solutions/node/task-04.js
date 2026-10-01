@@ -1,6 +1,7 @@
 const { error } = require("console");
 const http = require("http");
 const { type } = require("os");
+const { title } = require("process");
 const { text, json } = require("stream/consumers");
 const url = require("url");
 
@@ -115,6 +116,10 @@ function sendResponse(res, statusCode, data) {
   // - Access-Control-Allow-Origin: *
   // - Access-Control-Allow-Methods: GET, POST, PUT, DELETE
   // - Access-Control-Allow-Headers: Content-Type
+  if (res.headersSent) {
+    console.error(new Error("stack").stack); 
+    return;
+  }
   res.writeHead(statusCode, {
     "Content-Type": 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -162,32 +167,45 @@ function validateTodo(todoData, isUpdate = false) {
     return { isValid: false, errors };
   }
 
-  const hasName = Object.prototype.hasOwnProperty.call(todoData, "name");
+  if (!isUpdate) {
+    const hasName = Object.prototype.hasOwnProperty.call(todoData, "title");
 
-  if (!hasName) {
-    errors.push("Name is required");
-  } else if (hasName) {
-    const { name } = todoData;
-    if (typeof name !== "string") {
-      errors.push("Name must be string");
-    } else if (name.trim().length === 0){
-      errors.push("Name cannot be empty or whitespace only");
-    } else if (name.length > 100) {
-      errors.push("Name must be 100 characters or less");
+    if (!hasName) {
+      errors.push("Title is required");
+    } else if (hasName) {
+      const { title } = todoData;
+      if (typeof title !== "string") {
+        errors.push("Title must be string");
+      } else if (title.trim().length === 0){
+        errors.push("Title cannot be empty or whitespace only");
+      }  else if (title.length > 100) {
+        errors.push("Title must be 100 characters or less");
+      }
+    }
+  } else {
+    if (Object.prototype.hasOwnProperty.call(todoData, "title")) {
+      const { title } = todoData;
+      if (typeof title !== "string") {
+        errors.push("Title must be string");
+      } else if (title.trim().length === 0){
+        errors.push("Title cannot be empty or whitespace only");
+      }  else if (title.length > 100) {
+        errors.push("Title must be 100 characters or less");
+      }
     }
   }
+  
 
   if (Object.prototype.hasOwnProperty.call(todoData, "description")) {
-    const { descripton } = todoData;
-    if (descripton !== null && descripton !== undefined) {
-      if (typeof descripton !== "string") {
+    const { description } = todoData;
+    if (description !== null && description !== undefined) {
+      if (typeof description !== "string") {
         errors.push("Description must be a string");
-      } else if (descripton.length > 500) {
+      } else if (description.length > 500) {
         errors.push("Description must be 100 characters or less");
       }
     }
   }
-
   if (Object.prototype.hasOwnProperty.call(todoData, "completed")) {
     const {completed} = todoData;
     if (typeof completed !== "boolean") {
@@ -224,28 +242,34 @@ class TodoServer {
     // 1. Create 2-3 sample todos with proper structure
     // 2. Include variety: completed/incomplete, different dates
     // 3. Set proper id sequence for new todos
-
+    const now = new Date().toISOString();
     const sampleTodos = [
-      { name : "Test 1",
-        descripton: "Description of first todo",
+      { title : "Test 1",
+        description: "Description of first todo",
         completed : false,
+        createdAt : now,
+        updatedAt : now
       },
       {
-        name : "Test 2",
-        descripton: "Description of second todo",
+        title : "Test 2",
+        description: "Description of second todo",
         completed : false,
+        createdAt : now,
+        updatedAt : now
       },
       {
-        name : "Test 3",
-        descripton: "Description of third todo",
+        title : "Test 3",
+        description: "Description of third todo",
         completed : false,
+        createdAt : now,
+        updatedAt : now
       }
     ];
 
     sampleTodos.forEach(element => {
-      const id = this.nextId;
+      const id = this.generateNextId();
       this.todos.push({...element, id});
-      this.nextId++;
+
     });
   }
 
@@ -259,9 +283,7 @@ class TodoServer {
     // 3. Log server startup message
     // 4. Handle server errors
     const server = http.createServer((req, res) => {
-      res.writeHead(200, { 'content-type' : 'text/plain'});
-      res.end('Hello world!');
-      this.handleRequest(req, res);
+      return this.handleRequest(req, res);
     });
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
@@ -295,14 +317,11 @@ class TodoServer {
       const parsedUrl = url.parse(req.url, true);
       const { pathname, query } = parsedUrl;
       const method = req.method;
-      console.log(
-        `${method} ${pathname} - Request handling not implemented yet`
-      );
       if (method === 'OPTIONS') {
         return this.handleCORS(req, res);
       }
       
-      const param = parsePathParams('todos/:id', pathname);
+      const param = parsePathParams('/todos/:id', pathname);
       if (param != null) {
         if (method === 'GET') {
           return await this.getTodoById(req, res, param);
@@ -320,14 +339,13 @@ class TodoServer {
       if (method === 'POST' && pathname === '/todos') {
         return await this.createTodo(req, res);
       }
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-        return res.end(
-        JSON.stringify({
-          error: 'Not Found',
-          path: pathname,
-          method,
-        })
-      );
+      if (res.headersSent) return;
+      return sendResponse(res, 404, {
+        success: false,
+        error: "Not Found",
+        path: pathname,
+        method,
+      });
       // Route to appropriate handler based on method and path
       // GET /todos -> getAllTodos
       // GET /todos/:id -> getTodoById
@@ -337,6 +355,10 @@ class TodoServer {
       // OPTIONS -> handleCORS
     } catch (error) {
       console.error("Request handling error:", error);
+
+      if (res.headersSent) {
+        return res.end();
+      }
       sendResponse(res, 500, {
         success: false,
         error: "Internal server error",
@@ -350,19 +372,31 @@ class TodoServer {
    * @param {ServerResponse} res - HTTP response
    * @param {Object} query - URL query parameters
    */
-  async getAllTodos(req, res, query) {
-    // TODO: Implement get all todos with filtering
-    // 1. Get all todos from storage
-    // 2. Apply completed filter if provided in query
-    // 3. Return success response with data and count
-    // 4. Handle query parameter validation
+    async getAllTodos(req, res, query) {
+      // TODO: Implement get all todos with filtering
+      // 1. Get all todos from storage
+      // 2. Apply completed filter if provided in query
+      // 3. Return success response with data and count
+      // 4. Handle query parameter validation
+      let todoscur = this.todos;
+      const { completed } = query ?? {};
+      if (completed !== undefined) {
+        if (completed !== "true" && completed !== "false") {
+          return sendResponse(res, 400, {
+            success: false,
+            error: "Query parameter 'completed' must be 'true' or 'false'",
+          });
+        }
 
-    console.log("Get all todos not implemented yet");
-    sendResponse(res, 501, {
-      success: false,
-      error: "Get all todos not implemented yet",
-    });
-  }
+        const wantCompleted = completed === "true";
+        todoscur = todoscur.filter((todo) => todo.completed === wantCompleted);
+      }
+      return sendResponse(res, 200, {
+        success: true,
+        data: todoscur,
+        count: todoscur.length,
+      });
+    }
 
   /**
    * Handle GET /todos/:id - Get specific todo by ID
@@ -377,12 +411,23 @@ class TodoServer {
     // 3. Return 404 if not found
     // 4. Return success response with todo data
     // 5. Handle invalid ID format
-
-    console.log("Get todo by ID not implemented yet");
-    sendResponse(res, 501, {
-      success: false,
-      error: "Get todo by ID not implemented yet",
-    });
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return sendResponse(res, 400, { success: false, error: "Invalid todo id" });
+    }
+    const todo = this.todos.find(el => el.id === id);
+    
+    if (todo === undefined) {
+      return sendResponse(res, 404, {
+        success: false,
+        error: "Todo Not Found",
+      });
+    } else {
+      return sendResponse(res, 200, {
+        success: true,
+        data: todo,
+      });
+    }
   }
 
   /**
@@ -398,11 +443,33 @@ class TodoServer {
     // 4. Add to storage
     // 5. Return 201 with created todo
     // 6. Handle validation errors
-
-    console.log("Create todo not implemented yet");
-    sendResponse(res, 501, {
-      success: false,
-      error: "Create todo not implemented yet",
+    let parsedReqBody;
+    try {
+      parsedReqBody = await parseBody(req);
+    } catch (err) {
+      return sendResponse(res, 400, {
+        success : false, error : err.message || "INVALID JSON BODY"
+      });
+    }
+    const { isValid, errors } = validateTodo(parsedReqBody, false);
+    if (!isValid) {
+      return sendResponse(res, 400, {
+        success : false, errors
+      });
+    }
+    const now = new Date().toISOString();
+    const newTodo = {
+      id : this.generateNextId(),
+      title : parsedReqBody.title.trim(),
+      description: parsedReqBody.description ?? "",
+      completed : parsedReqBody.completed ?? false,
+      createdAt : now,
+      updatedAt : now
+    }
+    this.todos.push(newTodo);
+    return sendResponse(res, 201, {
+      success: true,
+      data: newTodo,
     });
   }
 
@@ -422,12 +489,52 @@ class TodoServer {
     // 6. Update timestamp
     // 7. Return updated todo
     // 8. Handle not found and validation errors
-
-    console.log("Update todo not implemented yet");
-    sendResponse(res, 501, {
-      success: false,
-      error: "Update todo not implemented yet",
-    });
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return sendResponse(res, 400, { success: false, error: "Invalid todo id" });
+    }
+    const todo = this.todos.find(el => el.id === id);
+    if (todo === undefined) {
+      return sendResponse(res, 404, {
+        success: false,
+        error: "Todo Not Found",
+      });
+    } else {
+      let parsedReqBody;
+      try {
+        parsedReqBody = await parseBody(req);
+      } catch (err) {
+        return sendResponse(res, 400, {
+          success : false, error : err.message || "INVALID JSON BODY"
+        });
+      }
+      const { isValid, errors } = validateTodo(parsedReqBody, true);
+      if (!isValid) {
+        return sendResponse(res, 400, {
+        success : false, errors
+        });
+      }
+      let todoind = this.todos.findIndex(el => el.id === id);
+      const now = new Date().toISOString();
+      const existing = this.todos[todoind];
+      const updated = {
+        ...existing,
+        updatedAt : now,
+        ...(parsedReqBody.title !== undefined && {title: parsedReqBody.title.trim()}),
+        ...(parsedReqBody.description !== undefined && { description: parsedReqBody.description }),
+        ...(parsedReqBody.completed !== undefined && {completed: parsedReqBody.completed}),
+        
+      };
+      this.todos[todoind] = updated;
+      console.log("typeof body.description:", typeof parsedReqBody.description);
+      console.log("body.description value:", JSON.stringify(parsedReqBody.description));
+      console.log("typeof existing.description:", typeof existing.description);
+      console.log("existing.description value:", JSON.stringify(existing.description));
+      return sendResponse(res, 200, {
+        success: true,
+        data: this.todos[todoind],
+      });
+    }
   }
 
   /**
@@ -444,12 +551,25 @@ class TodoServer {
     // 4. Remove from storage
     // 5. Return success message
     // 6. Handle invalid ID format
-
-    console.log("Delete todo not implemented yet");
-    sendResponse(res, 501, {
-      success: false,
-      error: "Delete todo not implemented yet",
-    });
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return sendResponse(res, 400, { success: false, error: "Invalid todo id" });
+    }
+    const todo = this.todos.find(el => el.id === id);
+    if (todo === undefined) {
+      return sendResponse(res, 404, {
+        success: false,
+        error: "Todo Not Found",
+      });
+    } else {
+      let todoind = this.todos.findIndex(el => el.id === id);
+      const tododel = this.todos[todoind];
+      this.todos = this.todos.filter(el => el.id != tododel.id);
+      return sendResponse(res, 200, {
+        success: true,
+        message: "Succesful delete"
+      });
+    }
   }
 
   /**
@@ -518,12 +638,12 @@ class TodoServer {
 module.exports = TodoServer;
 
 // Example usage (for testing):
-const isReadyToTest = false;
+const isReadyToTest = true;
 
 if (isReadyToTest) {
   // Start server for testing
   const server = new TodoServer(3000);
-  server.start();
+  //server.start();
 
   console.log("🚀 Todo Server starting...");
   console.log("📝 Replace TODO comments with implementation");
