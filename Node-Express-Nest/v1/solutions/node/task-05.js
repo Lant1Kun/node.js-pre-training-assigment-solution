@@ -66,24 +66,59 @@ class AnalyticsTracker {
     // TODO: implement daily stats tracking
     // - use YYYY-MM-DD date keys
     // - track created, updated, deleted, views per day
+    const d = new Date().toISOString().slice(0, 10);;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const key = `${yyyy}-${mm}-${dd}`;
+
+    if (!this.stats.dailyStats[key]) {
+      this.stats.dailyStats[key] = {
+        created: 0,
+        updated: 0,
+        deleted: 0,
+        views: 0
+      };
+    }
+
+    if (!(field in this.stats.dailyStats[key])) {
+      throw new Error(`Unknown daily field: ${field}`);
+    }
+
+    this.stats.dailyStats[key][field] += 1;
   }
   trackCreated() {
     // TODO: implement tracking logic
+    this.stats.totalCreated += 1;
+    this._bumpDaily("created");
   }
   trackUpdated() {
     // TODO: implement tracking logic
+    this.stats.totalUpdated += 1;
+    this._bumpDaily("updated");
   }
   trackDeleted() {
     // TODO: implement tracking logic
+    this.stats.totalDeleted += 1;
+    this._bumpDaily("deleted");
   }
   trackViewed() {
     // TODO: implement tracking logic
+    this.stats.totalViews += 1;
+    this._bumpDaily("views");
   }
   trackError() {
     // TODO: implement tracking logic
+    this.stats.errors += 1;
   }
   getStats() {
     // TODO: implement stats retrieval
+    return {
+      ...this.stats,
+      dailyStats: Object.fromEntries (
+        Object.entries(this.stats.dailyStats).map(([day, d]) => [day, {...d}])
+      ),
+    };
   }
 }
 
