@@ -176,6 +176,65 @@ function validateTodoPayload(payload, isCreate = false) {
   // - description: optional, string
   // - completed: optional, boolean (default false)
 
+  if (payload === null || typeof payload !== Object || Array.isArray(payload)) {
+    errors.push("Request body must be a JSON object");
+    return { errors, values: out };
+  }
+
+  if (!isUpdate) {
+    const hasName = Object.prototype.hasOwnProperty.call(payload, "title");
+
+    if (!hasName) {
+      errors.push("Title is required");
+    } else if (hasName) {
+      const { title } = payload;
+      if (typeof title !== "string") {
+        errors.push("Title must be string");
+      } else if (title.trim().length === 0){
+        errors.push("Title cannot be empty or whitespace only");
+      }  else if (title.length > 100) {
+        errors.push("Title must be 100 characters or less");
+      } else {
+        out.title = title.trim();
+      }
+    }
+    out.completed = false;
+  } else {
+    if (Object.prototype.hasOwnProperty.call(payload, "title")) {
+      const { title } = payload;
+      if (typeof title !== "string") {
+        errors.push("Title must be string");
+      } else if (title.trim().length === 0){
+        errors.push("Title cannot be empty or whitespace only");
+      }  else if (title.length > 100) {
+        errors.push("Title must be 100 characters or less");
+      } else {
+        out.title = title.trim();
+      }
+    }
+  }
+  
+
+  if (Object.prototype.hasOwnProperty.call(payload, "description")) {
+    const { description } = payload;
+    if (description !== null && description !== undefined) {
+      if (typeof description !== "string") {
+        errors.push("Description must be a string");
+      } else if (description.length > 500) {
+        errors.push("Description must be 100 characters or less");
+      } else {
+        out.description = description.trim();
+      }
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "completed")) {
+    const {completed} = payload;
+    if (typeof completed !== "boolean") {
+        errors.push("Completed must be a boolean");
+    } else {
+      out.completed = completed;
+    }
+  }
   return { errors, values: out };
 }
 
@@ -189,6 +248,11 @@ class TodoServer extends EventEmitter {
     // TODO: initialize analytics tracker
     // TODO: initialize logger
     // TODO: initialize recent events list keeping last 100 events
+    
+    this.analytics = new AnalyticsTracker();
+    this.logger = new ConsoleLogger();
+    this.recentEvents = []; 
+
     this.server = null;
 
     this._wireDefaultListeners();
@@ -228,6 +292,10 @@ class TodoServer extends EventEmitter {
     this.on("todoViewed", () => this.analytics.trackViewed());
     this.on("validationError", () => this.analytics.trackError());
     this.on("serverError", () => this.analytics.trackError());
+  }
+
+  _generateNextId() {
+    return this.nextId++;
   }
 
   /**
