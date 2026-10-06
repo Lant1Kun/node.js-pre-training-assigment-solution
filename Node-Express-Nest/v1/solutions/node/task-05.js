@@ -9,6 +9,9 @@
 const http = require("http");
 const url = require("url");
 const { EventEmitter } = require("events");
+const { resolve } = require("path");
+const { rejects } = require("assert");
+const path = require("path");
 
 // ---------- Utilities ----------
 
@@ -49,6 +52,37 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+function parsePathParams(pattern, path) {
+  const params = {};
+
+  const cleanPath = path.split("?")[0].replace(/\/+$/, "");
+  const cleanPattern = pattern.replace(/\/+$/, "");
+  const patternParts = cleanPattern.split("/");
+  const pathParts = cleanPath.split("/");
+
+  if (patternParts.length != pathParts.length) {
+    return null;
+  }
+
+  for (let i = 0; i < patternParts.length; i++) {
+    const patternPart = patternParts[i];
+    const pathPart = pathParts[i];
+
+    if (patternPart.startsWith(':') ) {
+      const name = patternPart.slice(1);
+      if (name === "") {
+        return null;
+      }
+      params[name] = decodeURIComponent(pathPart);
+    } else {
+      if (patternPart != pathPart) {
+        return null;
+      }
+    }
+  }
+  return params;
+}
+
 // ---------- Analytics ----------
 
 class AnalyticsTracker {
@@ -66,25 +100,14 @@ class AnalyticsTracker {
     // TODO: implement daily stats tracking
     // - use YYYY-MM-DD date keys
     // - track created, updated, deleted, views per day
-    const d = new Date().toISOString().slice(0, 10);;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const key = `${yyyy}-${mm}-${dd}`;
+    const key = new Date().toISOString().slice(0, 10);
 
     if (!this.stats.dailyStats[key]) {
-      this.stats.dailyStats[key] = {
-        created: 0,
-        updated: 0,
-        deleted: 0,
-        views: 0
-      };
+      this.stats.dailyStats[key] = { created: 0, updated: 0, deleted: 0, views: 0 };
     }
-
     if (!(field in this.stats.dailyStats[key])) {
       throw new Error(`Unknown daily field: ${field}`);
     }
-
     this.stats.dailyStats[key][field] += 1;
   }
   trackCreated() {
@@ -167,7 +190,7 @@ class ConsoleLogger {
 }
 
 // ---------- Validation ----------
-function validateTodoPayload(payload, isCreate = false) {
+function validateTodoPayload(payload, isUpdate = false) {
   const errors = [];
   const out = {};
 
@@ -294,7 +317,7 @@ class TodoServer extends EventEmitter {
     this.on("serverError", () => this.analytics.trackError());
   }
 
-  _generateNextId() {
+  _nextId() {
     return this.nextId++;
   }
 
@@ -304,6 +327,27 @@ class TodoServer extends EventEmitter {
   async start() {
     // TODO: create HTTP server and bind request handler
     // TODO: listen on this.port
+    if (this.server) {
+      throw new Error("Server is already running");
+    }
+
+    this.server = http.createServer((req, res) => this._handleRequest(req, res));
+
+    return new Promise((resolve, reject) => {
+      const onError = (err) => {
+        this.server = null;                          // clean up so start() can be retried
+        this.emit("serverError", { message: err.message, code: err.code });
+        reject(err);
+      };
+
+      this.server.once("error", onError);
+
+      this.server.listen(this.port, () => {
+        this.server.off("error", onError);
+        this.emit("serverStarted", { port : this.port});
+        resolve();
+      });
+    });
   }
 
   /**
@@ -311,6 +355,22 @@ class TodoServer extends EventEmitter {
    */
   async stop() {
     // TODO: stop the HTTP server if running
+    if (!this.server) return;
+
+    return new Promise ((resolve, reject) => {
+      this.server.close((err) => {
+        const wasListening = this.server.listening;
+        this.server = null;
+
+        if (err) {
+          this.emit("serverError", {message: err.message, phase: "stop"});
+          return reject(err);
+        }
+
+        if (wasListening) this.emit("serverStopped");
+        resolve();
+      })
+    })
   }
 
   /**
@@ -325,6 +385,185 @@ class TodoServer extends EventEmitter {
     // - /events (GET)
     // TODO: emit events for CRUD, errors, validation, etc.
     // TODO: send JSON responses with proper status codes
+    console.log("handleRequest hit:", req.method, req.url);
+    const parsedUrl = url.parse(req.url, true);
+    const { pathname, query } = parsedUrl;
+    const method = req.method;
+    if (method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.writeHead(204);
+      return res.end();
+    }
+
+    try {
+      const param = parsePathParams('/todos/:id', pathname);
+      if (param != null) {
+        if (method === "GET")    return await this._getTodoById(req, res, param);
+        if (method === "PUT")    return await this._updateTodo(req, res, param);
+        if (method === "DELETE") return await this._deleteTodo(req, res, param);
+      }
+
+      if (pathname === "/todos") {
+        if (method === "GET")  return await this._getAllTodos(req, res, query);
+        if (method === "POST") return await this._createTodo(req, res);
+      }
+
+      if (method === "GET" && pathname === "/analytics") {
+        return sendJson(res, 200, {
+          success: true,
+          data: this.analytics.getStats(),
+        });
+      }
+      if (method === "GET" && pathname === "/events") {
+        const limit = Math.min(Number(query.limit) || 100, 100);
+        const events = this.recentEvents.slice(-limit);
+        return sendJson(res, 200, {
+          success: true,
+          data: events,
+          count: events.length,
+        });
+      }
+      if (res.headersSent) return;
+      this.emit("serverError", { reason: "route not found", path: pathname, method });
+      return sendJson(res, 404, {
+        success: false,
+        error: "Not Found",
+        path: pathname,
+        method,
+      });
+    } catch (error) {
+      this.emit("serverError", { message: error.message, stack: error.stack });
+      if (res.headersSent) return res.end();
+      return sendJson(res, 500, { success: false, error: "Internal server error" });
+    }
+  }
+  async _getAllTodos(req, res, query) {
+    let todos = this.todos;
+    const { completed } = query ?? {};
+    if (completed !== undefined) {
+      if (completed !== "true" && completed !== "false") {
+        this.emit("validationError", {
+          operation: "list",
+          reason: "completed must be 'true' or 'false'",
+          value: completed,
+        });
+        return sendJson(res, 400, {
+          success: false,
+          error: "Query parameter 'completed' must be 'true' or 'false'",
+        });
+      }
+      const want = completed === "true";
+      todos = todos.filter((t) => t.completed === want);
+    }
+
+    this.emit("todosListed", { count: todos.length, filter: completed ?? null });
+    return sendJson(res, 200, {
+      success: true,
+      data: todos,
+      count: todos.length,
+    });
+  }
+
+  async _getTodoById(req, res, params) {
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      this.emit("validationError", { operation: "get", reason: "invalid id", id: params.id });
+      return sendJson(res, 400, { success: false, error: "Invalid todo id" });
+    }
+
+    const todo = this.todos.find((t) => t.id === id);
+    if (!todo) {
+      this.emit("todoNotFound", { id, operation: "get" });
+      return sendJson(res, 404, { success: false, error: "Todo not found" });
+    }
+
+    this.emit("todoViewed", { id });
+    return sendJson(res, 200, { success: true, data: todo });
+  }
+
+  async _createTodo(req, res) {
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (err) {
+      this.emit("validationError", { operation: "create", reason: "invalid json", message: err.message });
+      return sendJson(res, 400, { success: false, error: err.message });
+    }
+
+    const { errors, values } = validateTodoPayload(body, true);
+    if (errors.length) {
+      this.emit("validationError", { operation: "create", errors });
+      return sendJson(res, 400, { success: false, errors });
+    }
+
+    const now = nowISO();
+    const newTodo = {
+      id: this._nextId(),
+      ...values,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    this.todos.push(newTodo);
+    this.emit("todoCreated", { id: newTodo.id, title: newTodo.title });
+
+    return sendJson(res, 201, { success: true, data: newTodo });
+  }
+
+  async _updateTodo(req, res, params) {
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      this.emit("validationError", { operation: "update", reason: "invalid id", id: params.id });
+      return sendJson(res, 400, { success: false, error: "Invalid todo id" });
+    }
+
+    const index = this.todos.findIndex((t) => t.id === id);
+    if (index === -1) {
+      this.emit("todoNotFound", { id, operation: "update" });
+      return sendJson(res, 404, { success: false, error: "Todo not found" });
+    }
+
+    let body;
+    try {
+      body = await parseBody(req);
+    } catch (err) {
+      this.emit("validationError", { operation: "update", reason: "invalid json", message: err.message });
+      return sendJson(res, 400, { success: false, error: err.message });
+    }
+
+    const { errors, values } = validateTodoPayload(body, false);
+    if (errors.length) {
+      this.emit("validationError", { operation: "update", id, errors });
+      return sendJson(res, 400, { success: false, errors });
+    }
+
+    const existing = this.todos[index];
+    const updated = { ...existing, ...values, updatedAt: nowISO() };
+    this.todos[index] = updated;
+
+    this.emit("todoUpdated", { id, changes: Object.keys(values) });
+    return sendJson(res, 200, { success: true, data: updated });
+  }
+
+  async _deleteTodo(req, res, params) {
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      this.emit("validationError", { operation: "delete", reason: "invalid id", id: params.id });
+      return sendJson(res, 400, { success: false, error: "Invalid todo id" });
+    }
+
+    const index = this.todos.findIndex((t) => t.id === id);
+    if (index === -1) {
+      this.emit("todoNotFound", { id, operation: "delete" });
+      return sendJson(res, 404, { success: false, error: "Todo not found" });
+    }
+
+    const [deleted] = this.todos.splice(index, 1);
+    this.emit("todoDeleted", { id: deleted.id, title: deleted.title });
+
+    return sendJson(res, 200, { success: true, data: deleted });
   }
 }
 
