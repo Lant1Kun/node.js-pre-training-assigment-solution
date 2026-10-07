@@ -1,0 +1,10 @@
+1.SQL statement to create an index on the `status` column in the `todos` table.
+
+CREATE INDEX IF NOT EXISTS idx_todos_status
+ON public.todos(status);
+
+2.SQL statement using `EXPLAIN` (or `EXPLAIN ANALYZE`, depending on your database) to analyze the execution plan of a query that selects todos by `status`.
+EXPLAIN
+SELECT *
+FROM public.todos
+WHERE status = 'active';
