@@ -1,0 +1,22 @@
+1.To show all todos with active status
+SELECT * FROM public.todos
+WHERE status = 'active';
+To show all todos with completed status
+SELECT * FROM public.todos
+WHERE status = 'completed';
+
+2.
+To show all sorted by created_at from oldest
+SELECT * FROM public.todos
+ORDER BY created_at;
+
+To show all sorted ny created_at from newest
+SELECT * FROM public.todos
+ORDER BY created_at DESC;
+
+3.
+SQL query to select all todos where the 
+`title` or `description` contains a specific keyword
+SELECT * FROM public.todos
+WHERE title LIKE '%3%'
+OR description LIKE '%second%';
