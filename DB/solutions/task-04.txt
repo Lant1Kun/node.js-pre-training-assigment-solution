@@ -1,0 +1,22 @@
+1.SQL script for users table
+CREATE TABLE public.users (
+	id SERIAL PRIMARY KEY,
+	name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+	email TEXT NOT NULL UNIQUE CHECK (length(trim(email)) > 0),
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+2.
+SQL statement to add a new column `user_id` (integer) to the `todos` table.
+ALTER TABLE public.todos
+ADD COLUMN user_id INTEGER;
+ALTER TABLE public.todos
+ALTER COLUMN user_id SET NOT NULL;
+
+SQL statement to add a foreign key constraint on `todos.user_id` 
+referencing `users(id)`.
+ALTER TABLE public.todos
+ADD CONSTRAINT fk_todos_user
+FOREIGN KEY (user_id)
+REFERENCES public.users(id)
+ON DELETE CASCADE;
