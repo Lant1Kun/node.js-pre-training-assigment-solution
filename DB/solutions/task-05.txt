@@ -1,0 +1,20 @@
+1.SQL query to count the number of todos for each status (e.g., how many are 'active', how many are 'completed').
+
+SELECT status, COUNT(*) AS todo_count
+FROM public.todos
+GROUP BY status
+ORDER BY todo_count DESC;
+
+2.SQL query to count the number of todos for each user. The result should show the user's name (or email) and the count of their todos.
+SELECT u.id, u.name, u.email, COUNT(t.id) AS todo_count
+FROM public.users u
+LEFT JOIN public.todos t ON t.user_id = u.id
+GROUP BY u.id, u.name, u.email
+ORDER BY todo_count DESC, u.name;
+
+3.SQL query to find all users who do not have any todos assigned to them.
+SELECT u.id, u.name, u.email
+FROM public.users u
+LEFT JOIN public.todos t ON t.user_id = u.id
+WHERE t.id IS NULL
+ORDER BY u.name;
