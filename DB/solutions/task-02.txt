@@ -1,0 +1,15 @@
+Statement for create
+INSERT INTO public.todos (title, description, status, user_id)
+VALUES ('Test Todo', 'Description of first Todo', 'active', 1);
+
+Statement for reading every todos
+SELECT * FROM public.todos;
+
+Statement for update by id
+UPDATE public.todos
+SET status = 'completed'
+WHERE id = 1;
+
+Statement for delete by id
+DELETE FROM public.todos
+WHERE id = 1;
