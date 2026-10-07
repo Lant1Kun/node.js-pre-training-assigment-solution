@@ -1,0 +1,12 @@
+I already had installed PostgreSQL with pgAdmin
+First of all I created a new database with pgAdmin
+Then with using Query tools I created a table with SQL script
+CREATE TABLE public.todos (
+	id SERIAL PRIMARY KEY,
+	title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+	description TEXT,
+	status TEXT NOT NULL DEFAULT 'active'
+		   CHECK (status IN ('active', 'completed')),
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	user_id INTEGER NOT NULL
+);
