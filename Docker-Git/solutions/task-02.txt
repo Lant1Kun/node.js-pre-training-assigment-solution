@@ -1,0 +1,36 @@
+Create a new branch called `feature/add-scripts` and Switch to this branch
+git switch -c feature/add-scripts
+
+I Added manualy a `scripts` section to your `package.json` with `start`, `test`, and `dev` scripts
+
+I commited changes on feature branch
+git add package.json
+git commit -m "Add start, test, and dev scripts"
+
+Switched back on master branch
+git switch master
+
+Check the difference
+git diff feature/add-scripts
+
+Created a new branch
+git branch feature/add-dependencies
+
+Switched back on master branch
+git switch master
+
+merge branches
+git merge feature/add-scripts
+
+Delete branch
+git branch -d feature/add-scripts
+
+output for git branch -a
+  feature/add-dependencies
+* master
+
+$ git log --graph --oneline
+* 737b038 (HEAD -> master) Add start, test, and dev scripts
+* cd795d7 (feature/add-dependencies) Add others
+* 27c1090 Add gitignore
+
