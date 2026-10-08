@@ -1,0 +1,51 @@
+1.SQL statement to create a table named `audit_log`
+
+CREATE TABLE IF NOT EXISTS public.audit_log (
+    id         SERIAL PRIMARY KEY,
+    todo_id    INTEGER NOT NULL,
+    action     TEXT NOT NULL CHECK (action IN ('UPDATE', 'DELETE')),
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+2&3.
+Triger function
+CREATE OR REPLACE FUNCTION public.log_todo_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO public.audit_log (todo_id, action)
+    VALUES (
+        COALESCE(NEW.id, OLD.id),
+        TG_OP                    
+    );
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    ELSE
+        RETURN NEW;
+    END IF;
+END;
+$$;
+
+Triger for update
+CREATE TRIGGER trg_todos_after_update
+AFTER UPDATE ON public.todos
+FOR EACH ROW
+EXECUTE FUNCTION public.log_todo_change();
+
+Triger for delete
+CREATE TRIGGER trg_todos_after_delete
+AFTER DELETE ON public.todos
+FOR EACH ROW
+EXECUTE FUNCTION public.log_todo_change();
+
+Script I used to test audit_log
+SELECT id FROM public.users LIMIT 1;
+
+INSERT INTO public.todos (title, description, status, user_id)
+VALUES ('Audit test', 'testing triggers', 'active', 1)
+
+UPDATE public.todos SET status = 'completed' WHERE id = 14;
+DELETE FROM public.todos WHERE id = 14;
+
+SELECT * FROM public.audit_log WHERE todo_id = 14 ORDER BY changed_at;
