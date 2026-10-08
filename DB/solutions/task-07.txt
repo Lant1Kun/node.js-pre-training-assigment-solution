@@ -1,0 +1,6 @@
+Firstly I created an empty project in directory solution and added Sequelize in it
+
+To install i used a npm install --save sequelize
+I also installed a driver for postgre dependenses npm install sequelize pg pg-hstore dotenv
+
+2.Set up the ORM to connect to your existing database
