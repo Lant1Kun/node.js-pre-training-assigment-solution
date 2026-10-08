@@ -1,0 +1,26 @@
+1.
+Created a new directory with mkdir
+With `git init` initialized a repository
+I already had configed name and email for global so I just checked them with
+git config user.name
+git config user.email
+
+2.
+Created a new file with
+echo 'Project description' -> README.md
+Created .gitignore with
+echo '.env' > .gitignore
+then filled it by my own hands
+Created package.json with
+touch package.json
+
+git add .gitignore - staged .gitignore
+git commit -m 'Add gitignore' - commited .gitignore
+git add README.md - staged README.md
+git add package.json - staged package.json
+git commit -m 'Add others'- commited README.md & staged package.json
+
+
+git log --oneline
+cd795d7 (HEAD -> master) Add others
+27c1090 Add gitignore
