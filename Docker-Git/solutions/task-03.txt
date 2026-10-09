@@ -11,3 +11,45 @@ COPY app.js ./
 EXPOSE 3000
 CMD ["node", "app.js"]
 
+3.
+Build Docker image with tag `my-first-repo:v1`
+docker build -t my-first-repo:v1 .
+Run container in detached mode mapping port 3000
+docker run -d -p 3000:3000 --name my-node-app-container my-first-repo:v1
+List running containers and inspect your container
+docker ps - list running
+docker inspect my-node-app-container - container inspect
+Test that your application responds correctly
+curl http://localhost:3000
+Response
+StatusCode        : 200
+StatusDescription : OK
+Content           : Hello Docker!
+
+RawContent        : HTTP/1.1 200 OK
+                    Connection: keep-alive
+                    Keep-Alive: timeout=5
+                    Transfer-Encoding: chunked
+                    Content-Type: text/plain
+                    Date: Fri, 09 Oct 2026 19:38:41 GMT
+
+                    Hello Docker!
+
+Forms             : {}
+Headers           : {[Connection, keep-alive], [Keep-Alive, timeout=5], [Transfer-Encoding, chunked], [Content-Type, te
+                    xt/plain]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 14
+View container logs
+docker logs my-node-app-container
+Logs:
+Server running at http://localhost:3000/
+
+Removing and stopping
+docker stop my-node-app-container
+my-node-app-container
+docker rm my-node-app-container
+my-node-app-container
