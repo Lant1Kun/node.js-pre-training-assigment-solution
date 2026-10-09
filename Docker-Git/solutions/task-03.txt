@@ -1,0 +1,13 @@
+1.
+I Created app.js and update package.json then commited changes
+
+2.
+I created docker file with such code
+FROM node:24-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY app.js ./
+EXPOSE 3000
+CMD ["node", "app.js"]
+
