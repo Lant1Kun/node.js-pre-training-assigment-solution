@@ -1,0 +1,77 @@
+Dockerfile.single
+FROM node:24
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+
+Docker single build
+docker build -f Dockerfile.Single -t ts-app:single .
+Image size                                                                                          i Info →   U  In Use
+IMAGE           ID             DISK USAGE   CONTENT SIZE   EXTRA
+ts-app:single   31931d7fefd1       1.74GB          430MB
+
+Docker Multi
+FROM node:24 AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+RUN npm prune --omit=dev
+
+FROM node:24-alpine AS production
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+EXPOSE 3000
+USER node
+CMD ["node", "dist/index.js"]
+
+Docker multi build
+docker build -t ts-app:multi .
+Image size
+IMAGE          ID             DISK USAGE   CONTENT SIZE   EXTRA
+ts-app:multi   c0969c2d7cc0        247MB         62.3MB
+
+.dockerignore
+node_modules
+**/node_modules
+dist
+build
+src
+*.ts
+!src/index.ts
+tsconfig.json
+.eslintrc*
+.prettierrc*
+jest.config.*
+*.log
+Dockerfile*
+.dockerignore
+.env
+.env.*
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+coverage
+*.md
