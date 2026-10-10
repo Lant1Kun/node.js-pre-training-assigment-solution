@@ -1,0 +1,19 @@
+1. **Create conflicting branches:**
+
+git switch -c feature/update-readme-v1
+git add README.md
+git commit -m "Updated README.md title"
+
+2. **Create another conflicting branch:**
+git switch -c feature/update-readme-v2
+git add README.md
+git commit -m "Updated README.md title"
+
+3. **Create and resolve conflict:**
+git switch master
+git merge feature/update-readme-v1
+git merge feature/update-readme-v2
+I got troubles with conflicts at first so I made one more change in each branch
+then resolved two conflicts
+git add README.md
+git commit -m "Solved merge conflict"
