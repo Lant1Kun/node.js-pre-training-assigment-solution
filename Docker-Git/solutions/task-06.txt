@@ -1,0 +1,37 @@
+git switch -c feature/user-authentication
+git add auth.js
+git commit -m "Add auth.js"
+git add package.json
+git commit -m "update package.json"
+git add auth.js
+git commit -m "fix typo"
+git add middleware.js
+git commit -m "add middleware"
+git add auth.test.js
+git commit -m "add tests"
+$ git log --oneline
+478cda6 (HEAD -> feature/user-authentication) add tests
+ab5b20f add middleware
+e381496 fix typo
+ec59d25 update package.json
+$ git rebase -i HEAD~5
+$ git log --oneline
+01c5a0c Add auth.js
+40c73ec (HEAD -> feature/user-authentication) add tests
+0fa6998 add middleware
+3125495 update package.json
+01c5a0c Add auth.js
+
+git switch master
+git add README.md
+git commit -m "add README by other developer"
+
+git switch feature/user-authentication
+git rebase master
+
+$ git log --oneline --graph --decorate --all
+* 5b3e029 (HEAD -> feature/user-authentication) add tests
+* fe79343 add middleware
+* c37e421 update package.json
+* 299e906 Add auth.js
+* 9f6f104 (master) add README by other developer
